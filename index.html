@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Diver</title>
+    <meta charset="UTF-8">
+    <style>
+        body {
+            background: linear-gradient(to bottom, #000428, #004e92);
+            color: white;
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+            overflow: hidden;
+        }
+
+        #gameContainer {
+            position: relative;
+            width: 300px;
+            height: 250px;
+            margin: 20px;
+            border-bottom: 2px solid #00ff88;
+            overflow: hidden;
+        }
+
+        #submarine {
+            position: absolute;
+            left: -50px;
+            bottom: 50%;
+            font-size: 40px;
+            transition: all 2s cubic-bezier(0.4, 0, 0.6, 1);
+            transform: rotate(45deg);
+            filter: drop-shadow(2px 2px 5px rgba(0,0,0,0.5));
+        }
+
+        #coefficient {
+            position: absolute;
+            top: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 28px;
+            font-weight: bold;
+            color: #00ff88;
+            text-shadow: 0 0 10px rgba(0, 255, 136, 0.5);
+            z-index: 2;
+        }
+
+        button {
+            padding: 15px 40px;
+            background: linear-gradient(45deg, #00ff88, #00ccff);
+            border: none;
+            border-radius: 30px;
+            font-size: 20px;
+            font-weight: bold;
+            cursor: pointer;
+            color: #002b49;
+            margin: 20px;
+            transition: 0.3s;
+            box-shadow: 0 0 15px rgba(0, 200, 255, 0.3);
+        }
+
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .timer {
+            font-size: 16px;
+            color: #ff4444;
+            margin: 10px;
+        }
+
+        .message {
+            font-size: 18px;
+            color: #ff4444;
+            margin: 10px;
+            height: 20px;
+        }
+
+        .bubbles {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
+
+        .bubble {
+            position: absolute;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 50%;
+            animation: bubble 3s infinite;
+        }
+
+        @keyframes bubble {
+            0% { transform: translateY(0); opacity: 0; }
+            50% { opacity: 0.3; }
+            100% { transform: translateY(-100px); opacity: 0; }
+        }
+    </style>
+</head>
+<body>
+	    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <script>
+        const tg = window.Telegram.WebApp;
+        tg.expand(); // Разворачивает WebApp на весь экран
+    </script>
+    <div id="gameContainer">
+        <div class="bubbles" id="bubbles"></div>
+        <div id="coefficient">1.07</div>
+        <div id="submarine">🛥️</div>
+    </div>
+    <div class="message" id="message"></div>
+    <button onclick="startGame()" id="playButton">Узнать результат</button>
+    <div class="timer" id="timer"></div>
+
+    <script>
+        let lastPlayTime = 0;
+        let isPlaying = false;
+
+        function generateCoefficient() {
+            if(Math.random() < 0.8) {
+                return (1.07 + (5.00 - 1.07) * Math.random()).toFixed(2);
+            } else {
+                return (5.00 + (15.00 - 5.00) * Math.random()).toFixed(2);
+            }
+        }
+
+        function createBubbles() {
+            const bubbles = document.getElementById('bubbles');
+            bubbles.innerHTML = '';
+            for(let i = 0; i < 20; i++) {
+                const bubble = document.createElement('div');
+                bubble.className = 'bubble';
+                bubble.style.left = Math.random() * 100 + '%';
+                bubble.style.width = bubble.style.height = 
+                    Math.random() * 10 + 5 + 'px';
+                bubble.style.animationDelay = Math.random() * 2 + 's';
+                bubbles.appendChild(bubble);
+            }
+        }
+
+        function startGame() {
+            const now = Date.now();
+            const timeLeft = 60000 - (now - lastPlayTime);
+            
+            if(timeLeft > 0) {
+                document.getElementById('message').textContent = 
+                    `Погружение доступно через ${Math.ceil(timeLeft/1000)} сек.`;
+                return;
+            }
+
+            if(isPlaying) return;
+            isPlaying = true;
+            
+            document.getElementById('message').textContent = '';
+            lastPlayTime = now;
+            document.getElementById('playButton').disabled = true;
+
+            const coefficient = generateCoefficient();
+            const submarine = document.getElementById('submarine');
+            const coeffDisplay = document.getElementById('coefficient');
+
+            // Сброс позиции
+            submarine.style.left = '-50px';
+            submarine.style.transform = 'rotate(45deg) scale(1)';
+            
+            // Анимация движения
+            setTimeout(() => {
+                submarine.style.left = '110%';
+                submarine.style.transform = 'rotate(45deg) scale(1.3)';
+            }, 50);
+
+            // Обновление коэффициента
+            let currentCoeff = 1.07;
+            const startTime = Date.now();
+            const duration = 2000;
+
+            const updateCoeff = () => {
+                const progress = (Date.now() - startTime) / duration;
+                if(progress < 1) {
+                    currentCoeff = 1.07 + (coefficient - 1.07) * progress;
+                    coeffDisplay.textContent = currentCoeff.toFixed(2);
+                    requestAnimationFrame(updateCoeff);
+                } else {
+                    coeffDisplay.textContent = coefficient;
+                    isPlaying = false;
+                }
+            };
+            updateCoeff();
+
+            // Создаем пузыри
+            createBubbles();
+
+            // Таймер
+            const timerElement = document.getElementById('timer');
+            let secondsLeft = 60;
+            const timer = setInterval(() => {
+                secondsLeft--;
+                timerElement.textContent = `Следующее погружение через: ${secondsLeft} сек.`;
+                if(secondsLeft <= 0) {
+                    clearInterval(timer);
+                    document.getElementById('playButton').disabled = false;
+                    submarine.style.left = '-50px';
+                    coeffDisplay.textContent = '1.07';
+                }
+            }, 1000);
+        }
+
+        // Инициализация пузырей
+        createBubbles();
+        setInterval(createBubbles, 3000);
+    </script>
+</body>
+</html>
